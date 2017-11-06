@@ -1,5 +1,4 @@
 #include "SpectralClusterer.h"
-
 SClusterer::SClusterer(int _K, std::string __filename, MPI_Comm _comm)
 {
 	comm = _comm;
@@ -12,7 +11,7 @@ SClusterer::SClusterer(int _K, std::string __filename, MPI_Comm _comm)
 	parse();
 	if (rank == 0) { std::cout << "Weight Matrix:\n"; printW(); std::cout << "\n"; }
 	prepare_local_vertices();
-	init_partition();
+	//init_partition();
 }
 SClusterer::Vertex::Vertex(int _id, std::vector<int> _e, std::vector<double> _w)
 {
@@ -100,6 +99,7 @@ void SClusterer::prepare_local_vertices()
 	std::vector<int> VertsPerP, NZPerP;
 	std::vector<int> Verts0, NZ0;
 	int lnz;
+	double curr_w;
 	if (rank == 0)
 	{
 		for (int i = 0; i < N; i++)
@@ -115,29 +115,32 @@ void SClusterer::prepare_local_vertices()
 		for (int i = 1; i < size; i++)
 			Verts0.push_back(Verts0[i - 1] - VertsPerP[i - 1]);
 		
+
+		std::cout << "Size = " << size << ", VertsPerP[0] = " << VertsPerP[0] << ", Verts0[0] = " << Verts0[0] << "\n";
 		for (int i = 0; i < size; i++)
 		{
-			NZPerP.push_back(0);
+			curr_w = 0.0;
 			for (int j = Verts0[i]; j < Verts0[i] + VertsPerP[i]; j++)
-				NZPerP[i] += W[j].get_deg();
+				curr_w += W[j].get_deg();
+			NZPerP.push_back(curr_w);
 		}
-		NZ0.push_back(0);
+		/*NZ0.push_back(0);
 		for (int i = 1; i < size; i++)
-			NZ0.push_back(NZ0[i - 1] - NZPerP[i - 1]);
+			NZ0.push_back(NZ0[i - 1] - NZPerP[i - 1]);*/
 	}
 
-	lI.resize(lnz);
-	lJ.resize(lnz);
-	lw.resize(lnz);
-	MPI_Scatter(NZPerP.data(), 1, MPI_INT, &lnz, 1, MPI_INT, 0, comm);
-	MPI_Scatterv(I.data(), NZPerP.data(), NZ0.data(), MPI_INT, lI.data(), lnz, MPI_INT, 0, comm);
+	//lI.resize(lnz);
+	//lJ.resize(lnz);
+	//lw.resize(lnz);
+	//MPI_Scatter(NZPerP.data(), 1, MPI_INT, &lnz, 1, MPI_INT, 0, comm);
+	/*MPI_Scatterv(I.data(), NZPerP.data(), NZ0.data(), MPI_INT, lI.data(), lnz, MPI_INT, 0, comm);
 	MPI_Scatterv(J.data(), NZPerP.data(), NZ0.data(), MPI_INT, lJ.data(), lnz, MPI_INT, 0, comm);
-	MPI_Scatterv(w.data(), NZPerP.data(), NZ0.data(), MPI_INT, lw.data(), lnz, MPI_INT, 0, comm);
+	MPI_Scatterv(w.data(), NZPerP.data(), NZ0.data(), MPI_INT, lw.data(), lnz, MPI_INT, 0, comm);*/
 
-	int count = 0;
+	/*int count = 0;
 	int vcount = -1;
 	std::vector<int> e;
-	std::vector<double> w;
+	std::vector<double> wp;
 	for (int i = 0; i < lnz; i++)
 	{
 		if (I[i] != vcount)
@@ -145,22 +148,22 @@ void SClusterer::prepare_local_vertices()
 			if (count != 0) lid.push_back(count);
 			count = 0;
 			vcount = I[i];
-			W.push_back(Vertex(vcount, e, w));
+			W.push_back(Vertex(vcount, e, wp));
 			e = std::vector<int>();
-			w = std::vector<double>();
+			wp = std::vector<double>();
 			e.push_back(lJ[i]);
-			w.push_back(lw[i]);
+			wp.push_back(lw[i]);
 			count += 1;
 		}
 		else
 		{
 			e.push_back(lJ[i]);
-			w.push_back(lw[i]);
+			wp.push_back(lw[i]);
 			count += 1;
 		}
 	}
 	lid.push_back(count);
-	W.push_back(Vertex(vcount, e, w));
+	W.push_back(Vertex(vcount, e, wp));*/
 }
 void SClusterer::init_partition()
 {
@@ -187,16 +190,16 @@ void SClusterer::printW()
 {
 	if (nonzeros < 20)
 		for (int i = 0; i < nonzeros; i++)
-			std::cout << "Entry " << i << ": " << std::get<0>(W[i]) << ", " << std::get<1>(W[i]) << ", " << std::get<2>(W[i]) << std::endl;
+			std::cout << "Entry " << i << ": " << std::get<0>(V[i]) << ", " << std::get<1>(V[i]) << ", " << std::get<2>(V[i]) << std::endl;
 	else
 	{
 		for (int i = 0; i < 10; i++)
-			std::cout << "Entry " << i << ": " << std::get<0>(W[i]) << ", " << std::get<1>(W[i]) << ", " << std::get<2>(W[i]) << std::endl;
+			std::cout << "Entry " << i << ": " << std::get<0>(V[i]) << ", " << std::get<1>(V[i]) << ", " << std::get<2>(V[i]) << std::endl;
 		std::cout << ".\n";
 		std::cout << ".\n";
 		std::cout << ".\n";
 		for (int i = nonzeros-10; i < nonzeros; i++)
-			std::cout << "Entry " << i << ": " << std::get<0>(W[i]) << ", " << std::get<1>(W[i]) << ", " << std::get<2>(W[i]) << std::endl;
+			std::cout << "Entry " << i << ": " << std::get<0>(V[i]) << ", " << std::get<1>(V[i]) << ", " << std::get<2>(V[i]) << std::endl;
 	}
 }
 int SClusterer::Vertex::get_deg() { return deg; }
